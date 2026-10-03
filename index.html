@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jejak: lihat apa yang terlihat dari sambungan Anda</title>
+<meta name="description" content="Lihat alamat IP, perkiraan lokasi, data perangkat, dan periksa format nomor telepon. Semua berjalan di browser Anda tanpa menyimpan data.">
+<meta name="theme-color" content="#EEF2ED" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1A24" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='none' stroke='%2314253A' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='4.5' fill='%232B6F6B'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper: #EEF2ED;
+    --paper-2: #E4EBE5;
+    --ink: #14253A;
+    --ink-soft: #4A5B6B;
+    --line: #C5D0C8;
+    --line-strong: #98A99F;
+    --accent: #2B6F6B;
+    --on-accent: #FFFFFF;
+    --danger: #9B3D2E;
+
+    --serif: 'Instrument Serif', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+    --sans: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --radius: 6px;
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0E1A24;
+      --paper-2: #132431;
+      --ink: #E7EEEA;
+      --ink-soft: #9FB0B8;
+      --line: #243A4A;
+      --line-strong: #3E586C;
+      --accent: #74BDB4;
+      --on-accent: #0E1A24;
+      --danger: #E58E7C;
+    }
+    .mapframe iframe { filter: invert(.92) hue-rotate(180deg) saturate(.55) brightness(.95); }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, p, dl, dd, ol, figure { margin: 0; }
+  a { color: var(--accent); text-underline-offset: .2em; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  [hidden] { display: none !important; }
+
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 clamp(1.25rem, 4vw, 2.5rem); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ---------- Header ---------- */
+  .site-header {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .25rem 1.5rem; min-height: 64px; padding-top: .4rem; padding-bottom: .4rem; }
+  .brand { display: inline-flex; align-items: center; gap: .6rem; color: var(--ink); text-decoration: none; font-family: var(--serif); font-size: 1.7rem; line-height: 1; letter-spacing: -.01em; }
+  .brand svg { width: 26px; height: 26px; }
+  .nav { display: flex; flex-wrap: wrap; gap: .1rem; }
+  .nav a { color: var(--ink-soft); text-decoration: none; padding: .4rem .65rem; border-radius: 4px; font-size: .95rem; }
+  .nav a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: .35em; }
+
+  /* ---------- Hero ---------- */
+  .hero { position: relative; overflow: hidden; padding: clamp(3rem, 7vw, 5.5rem) 0 clamp(3.5rem, 8vw, 6rem); }
+  .hero::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 72px 72px;
+    opacity: .6;
+    -webkit-mask-image: radial-gradient(ellipse at 30% 40%, #000 0%, transparent 72%);
+            mask-image: radial-gradient(ellipse at 30% 40%, #000 0%, transparent 72%);
+  }
+  .hero-grid { position: relative; display: grid; gap: 3rem; }
+  @media (min-width: 960px) { .hero-grid { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); align-items: center; gap: 4rem; } }
+
+  .hero-lead { font-family: var(--serif); font-style: italic; font-weight: 400; font-size: clamp(1.5rem, 2.6vw, 2rem); line-height: 1.25; color: var(--ink-soft); max-width: 24ch; }
+
+  .ip { font-family: var(--serif); font-size: clamp(2.7rem, 7vw, 5.6rem); line-height: 1; letter-spacing: -.03em; margin: 1.1rem 0 1.4rem; font-variant-numeric: lining-nums; }
+  .ip .ch { display: inline-block; animation: rise .7s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i) * 35ms); }
+  .ip .sep { color: var(--line-strong); }
+  .ip--long { font-size: clamp(1.35rem, 3vw, 2.1rem); letter-spacing: -.01em; overflow-wrap: anywhere; line-height: 1.2; }
+  .ip--wait, .ip--error { font-family: var(--sans); font-size: 1.15rem; letter-spacing: 0; line-height: 1.5; color: var(--ink-soft); }
+  .ip--error { color: var(--danger); }
+  @keyframes rise { from { opacity: 0; transform: translateY(.22em); } }
+  @media (prefers-reduced-motion: reduce) { .ip .ch { animation: none; } }
+
+  .hero-place { font-size: 1.3rem; line-height: 1.35; }
+  .hero-isp { color: var(--ink-soft); margin-top: .15rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.75rem; }
+  .hero-note { margin-top: 1.75rem; font-size: .92rem; color: var(--ink-soft); max-width: 46ch; }
+
+  .mapframe { aspect-ratio: 4 / 3; padding: 6px; border: 1px solid var(--ink); border-radius: 9px; background: var(--paper); display: grid; }
+  .mapframe iframe { width: 100%; height: 100%; display: block; border: 1px solid var(--line); border-radius: 4px; }
+  .map-empty { place-self: center; padding: 1rem; text-align: center; color: var(--ink-soft); font-size: .95rem; }
+  .map-caption { margin: .8rem 0 1.1rem; font-size: .9rem; color: var(--ink-soft); }
+  .map-caption a { margin-left: .35rem; }
+
+  .status { min-height: 1.5em; margin-top: .8rem; font-size: .92rem; color: var(--ink-soft); }
+  .status.error { color: var(--danger); }
+
+  /* ---------- Buttons ---------- */
+  .btn { font: inherit; font-weight: 500; font-size: .95rem; line-height: 1.2; padding: .8rem 1.3rem; border-radius: var(--radius); border: 1px solid var(--ink); cursor: pointer; transition: background-color .15s, color .15s, border-color .15s; }
+  .btn-solid { background: var(--ink); color: var(--paper); }
+  .btn-solid:hover { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .btn-ghost { background: transparent; color: var(--ink); border-color: var(--line-strong); }
+  .btn-ghost:hover { border-color: var(--ink); }
+
+  /* ---------- Sections ---------- */
+  .section { padding: clamp(3.5rem, 8vw, 6.5rem) 0; border-top: 1px solid var(--line); scroll-margin-top: 64px; }
+  .section--band { background: var(--paper-2); }
+  .section-grid { display: grid; gap: 2.5rem 4rem; }
+  @media (min-width: 900px) { .section-grid { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); } }
+  .section-head h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(2rem, 4vw, 2.9rem); line-height: 1.05; letter-spacing: -.015em; }
+  .section-head p { margin-top: 1rem; color: var(--ink-soft); max-width: 38ch; }
+  .section-head .btn { margin-top: 1.5rem; }
+  .section-head--wide p { max-width: 62ch; }
+  .section-head--wide { margin-bottom: 2.75rem; }
+
+  .group-title { font-family: var(--serif); font-weight: 400; font-size: 1.4rem; margin-bottom: .6rem; }
+  .cols { display: grid; gap: 2.75rem 3rem; }
+  @media (min-width: 700px) { .cols--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 700px) { .cols--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1040px) { .cols--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+  .rows { border-top: 1px solid var(--ink); }
+  .row { display: grid; grid-template-columns: minmax(8.5rem, 11rem) minmax(0, 1fr); gap: .2rem 1.25rem; padding: .8rem 0; border-bottom: 1px solid var(--line); }
+  .row dt { color: var(--ink-soft); font-size: .92rem; }
+  .row dd { font-weight: 500; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+  @media (max-width: 480px) { .row { grid-template-columns: 1fr; } }
+
+  /* ---------- Phone checker ---------- */
+  .field label { display: block; font-weight: 500; margin-bottom: .5rem; }
+  .form-row { display: flex; flex-wrap: wrap; gap: .75rem; }
+  .field input { flex: 1 1 15rem; min-width: 0; font: inherit; font-size: 1.15rem; padding: .85rem 1rem; color: var(--ink); background: var(--paper); border: 1px solid var(--line-strong); border-radius: var(--radius); }
+  .field input::placeholder { color: var(--ink-soft); opacity: .8; }
+  .field input:focus { border-color: var(--accent); }
+  .field-hint { margin-top: .6rem; font-size: .9rem; color: var(--ink-soft); }
+
+  .result { margin-top: 2.25rem; }
+  .verdict { display: flex; align-items: center; gap: .65rem; font-family: var(--serif); font-size: 1.75rem; line-height: 1.2; }
+  .verdict::before { content: ''; width: .6rem; height: .6rem; border-radius: 50%; background: currentColor; flex: none; }
+  .verdict.ok { color: var(--accent); }
+  .verdict.bad { color: var(--danger); }
+  .verdict-reason { margin: .35rem 0 1.25rem; color: var(--ink-soft); max-width: 60ch; }
+  .result-note { margin-top: 1rem; font-size: .9rem; color: var(--ink-soft); max-width: 62ch; }
+
+  /* ---------- Pemeriksa nomor: hasil diperluas ---------- */
+  #nomor .phone-groups { margin-top: 2rem; }
+  #nomor .verdict.loading { color: var(--ink-soft); }
+  #nomor .tz-chips { display: flex; flex-wrap: wrap; gap: .45rem; padding: .15rem 0; }
+  #nomor .tz-chip { border: 1px solid var(--line-strong); border-radius: 999px; padding: .12rem .7rem; font-size: .88rem; font-variant-numeric: tabular-nums; }
+
+  /* ---------- Privacy + log ---------- */
+  .prose { max-width: 62ch; }
+  .prose p + p { margin-top: 1rem; }
+  .log { margin-top: 2.5rem; border-top: 1px solid var(--ink); max-width: 62ch; }
+  .log summary { cursor: pointer; padding: .9rem 0; font-weight: 500; }
+  .log ol { list-style: none; padding: 0; max-height: 18rem; overflow: auto; }
+  .log li { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: 1rem; padding: .5rem 0; border-top: 1px solid var(--line); font-size: .92rem; }
+  .log time { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  .site-footer { border-top: 1px solid var(--line); padding: 2.25rem 0 3rem; font-size: .92rem; color: var(--ink-soft); }
+  .site-footer .wrap { display: flex; flex-wrap: wrap; gap: .5rem 2rem; justify-content: space-between; }
+  .noscript { padding: 1rem; text-align: center; background: var(--paper-2); }
+</style>
+</head>
+
+<body>
+<noscript><p class="noscript">Jejak membutuhkan JavaScript untuk membaca data dari browser Anda. Aktifkan JavaScript lalu muat ulang halaman.</p></noscript>
+
+<header class="site-header">
+  <div class="wrap bar">
+    <a class="brand" href="#top" aria-label="Jejak, kembali ke atas">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="4.5" fill="var(--accent)"/></svg>
+      <span>Jejak</span>
+    </a>
+    <nav class="nav" aria-label="Navigasi utama">
+      <a href="#jaringan">Jaringan</a>
+      <a href="#gps">Lokasi GPS</a>
+      <a href="#perangkat">Perangkat</a>
+      <a href="#nomor">Nomor telepon</a>
+      <a href="#privasi">Privasi</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- ================= HERO ================= -->
+  <section class="hero" id="top">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <h1 class="hero-lead">Setiap situs yang Anda kunjungi dapat melihat alamat ini.</h1>
+        <p class="ip ip--wait" id="ip" aria-live="polite">Menghubungi layanan pencarian IP…</p>
+        <p class="hero-place" id="heroPlace"></p>
+        <p class="hero-isp" id="heroIsp"></p>
+        <div class="actions">
+          <button class="btn btn-ghost" type="button" id="copyIp" hidden>Salin alamat IP</button>
+          <button class="btn btn-ghost" type="button" id="reload">Muat ulang</button>
+        </div>
+        <p class="hero-note">Alamat IP menunjukkan perkiraan wilayah koneksi Anda, bukan alamat rumah.</p>
+      </div>
+
+      <div class="mapcol">
+        <div class="mapframe" id="mapBox"><p class="map-empty">Peta muncul setelah lokasi ditemukan.</p></div>
+        <p class="map-caption"><span id="mapCaption">Belum ada lokasi untuk ditampilkan.</span><a id="mapLink" href="#" target="_blank" rel="noopener" hidden>Buka peta besar</a></p>
+        <button class="btn btn-solid" type="button" id="gpsBtnHero">Gunakan lokasi GPS saya</button>
+        <p class="status" id="gpsStatusHero" role="status"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= JARINGAN ================= -->
+  <section class="section" id="jaringan">
+    <div class="wrap section-grid">
+      <div class="section-head">
+        <h2>Jaringan Anda</h2>
+        <p>Data ini dibaca dari alamat IP Anda oleh layanan pencarian IP. Lokasinya berupa perkiraan, biasanya setingkat kota.</p>
+      </div>
+      <div class="cols cols--2">
+        <div>
+          <h3 class="group-title">Sambungan</h3>
+          <dl class="rows">
+            <div class="row"><dt>Alamat IP publik</dt><dd id="ipAddr">Memuat…</dd></div>
+            <div class="row"><dt>Versi IP</dt><dd id="ipVersion">Memuat…</dd></div>
+            <div class="row"><dt>Penyedia internet</dt><dd id="ipIsp">Memuat…</dd></div>
+            <div class="row"><dt>Nomor jaringan (ASN)</dt><dd id="ipAsn">Memuat…</dd></div>
+            <div class="row"><dt>Jenis koneksi</dt><dd id="netType">Memeriksa…</dd></div>
+            <div class="row"><dt>Perkiraan kecepatan unduh</dt><dd id="netDown">Memeriksa…</dd></div>
+          </dl>
+        </div>
+        <div>
+          <h3 class="group-title">Wilayah</h3>
+          <dl class="rows">
+            <div class="row"><dt>Negara</dt><dd id="geoCountry">Memuat…</dd></div>
+            <div class="row"><dt>Provinsi atau wilayah</dt><dd id="geoRegion">Memuat…</dd></div>
+            <div class="row"><dt>Kota</dt><dd id="geoCity">Memuat…</dd></div>
+            <div class="row"><dt>Kode pos</dt><dd id="geoPostal">Memuat…</dd></div>
+            <div class="row"><dt>Zona waktu</dt><dd id="geoTz">Memuat…</dd></div>
+            <div class="row"><dt>Kode telepon negara</dt><dd id="geoCall">Memuat…</dd></div>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= GPS ================= -->
+  <section class="section section--band" id="gps">
+    <div class="wrap section-grid">
+      <div class="section-head">
+        <h2>Lokasi GPS</h2>
+        <p>Untuk titik yang lebih tepat, browser dapat memakai GPS atau Wi-Fi perangkat Anda. Browser selalu meminta izin lebih dulu, dan Anda boleh menolaknya.</p>
+        <button class="btn btn-solid" type="button" id="gpsBtn">Gunakan lokasi GPS saya</button>
+        <p class="status" id="gpsStatus" role="status"></p>
+      </div>
+      <div>
+        <dl class="rows">
+          <div class="row"><dt>Garis lintang</dt><dd id="gpsLat">Belum diminta</dd></div>
+          <div class="row"><dt>Garis bujur</dt><dd id="gpsLon">Belum diminta</dd></div>
+          <div class="row"><dt>Akurasi</dt><dd id="gpsAcc">Belum diminta</dd></div>
+          <div class="row"><dt>Ketinggian</dt><dd id="gpsAlt">Belum diminta</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PERANGKAT ================= -->
+  <section class="section" id="perangkat">
+    <div class="wrap">
+      <div class="section-head section-head--wide">
+        <h2>Perangkat dan browser</h2>
+        <p>Informasi yang dibagikan browser Anda ke setiap halaman web tanpa meminta izin.</p>
+      </div>
+      <div class="cols cols--3">
+        <div>
+          <h3 class="group-title">Sistem</h3>
+          <dl class="rows">
+            <div class="row"><dt>Sistem operasi</dt><dd id="sysOs">Memeriksa…</dd></div>
+            <div class="row"><dt>Browser</dt><dd id="sysBrowser">Memeriksa…</dd></div>
+            <div class="row"><dt>Inti prosesor</dt><dd id="sysCpu">Memeriksa…</dd></div>
+            <div class="row"><dt>Memori (RAM)</dt><dd id="sysRam">Memeriksa…</dd></div>
+            <div class="row"><dt>Bahasa</dt><dd id="sysLang">Memeriksa…</dd></div>
+            <div class="row"><dt>Baterai</dt><dd id="sysBattery">Memeriksa…</dd></div>
+          </dl>
+        </div>
+        <div>
+          <h3 class="group-title">Layar</h3>
+          <dl class="rows">
+            <div class="row"><dt>Resolusi layar</dt><dd id="scrRes">Memeriksa…</dd></div>
+            <div class="row"><dt>Ukuran jendela</dt><dd id="scrView">Memeriksa…</dd></div>
+            <div class="row"><dt>Kedalaman warna</dt><dd id="scrDepth">Memeriksa…</dd></div>
+            <div class="row"><dt>Rasio piksel</dt><dd id="scrDpr">Memeriksa…</dd></div>
+            <div class="row"><dt>Prosesor grafis</dt><dd id="scrGpu">Memeriksa…</dd></div>
+          </dl>
+        </div>
+        <div>
+          <h3 class="group-title">Sesi</h3>
+          <dl class="rows">
+            <div class="row"><dt>Cookie</dt><dd id="secCookie">Memeriksa…</dd></div>
+            <div class="row"><dt>Koneksi aman</dt><dd id="secHttps">Memeriksa…</dd></div>
+            <div class="row"><dt>Waktu muat halaman</dt><dd id="secLoad">Memeriksa…</dd></div>
+            <div class="row"><dt>Halaman perujuk</dt><dd id="secRef">Memeriksa…</dd></div>
+            <div class="row"><dt>Sinyal Do Not Track</dt><dd id="secDnt">Memeriksa…</dd></div>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= NOMOR TELEPON ================= -->
+  <section class="section section--band" id="nomor">
+    <div class="wrap section-grid">
+      <div class="section-head">
+        <h2>Periksa nomor telepon</h2>
+        <p>Masukkan nomor dalam format apa pun. Pemeriksaan membaca awalan nomor di browser Anda untuk menunjukkan negara, operator asal, dan apakah panjangnya wajar. Cara ini tidak bisa memastikan nomor aktif atau menemukan pemiliknya.</p>
+      </div>
+      <div>
+        <form class="field" id="phoneForm" novalidate>
+          <label for="phoneInput">Nomor telepon</label>
+          <div class="form-row">
+            <input id="phoneInput" type="tel" inputmode="tel" autocomplete="off" placeholder="08123456789 atau +628123456789" aria-describedby="phoneHint">
+            <button class="btn btn-solid" type="submit">Periksa nomor</button>
+          </div>
+          <p class="field-hint" id="phoneHint">Validasi dan normalisasi memakai libphonenumber-js (metadata libphonenumber Google) yang diproses lokal di browser Anda. Nomor tidak dikirim ke mana pun.</p>
+        </form>
+
+        <div class="result" id="phoneResult" aria-live="polite" aria-busy="false" hidden>
+          <p class="verdict" id="verdict"></p>
+          <p class="verdict-reason" id="verdictReason"></p>
+          <dl class="rows" id="phoneRows"></dl>
+          <div class="cols cols--2 phone-groups" id="phoneExtra"></div>
+          <p class="result-note">Operator asal menunjukkan penerbit awalan nomor. Nomor yang sudah dipindahkan ke operator lain lewat portabilitas nomor tidak bisa dikenali dari awalan. Metadata bersumber dari libphonenumber-js (dimuat via CDN jsDelivr) dan peta prefix operator/kode area Indonesia bawaan halaman ini.</p>
+        </div>
+      </div>
+  </section>
+
+  <!-- ================= PRIVASI ================= -->
+  <section class="section" id="privasi">
+    <div class="wrap section-grid">
+      <div class="section-head">
+        <h2>Privasi</h2>
+      </div>
+      <div>
+        <div class="prose">
+          <p>Jejak berjalan di browser Anda. Situs ini tidak punya server untuk menyimpan data, dan tidak memakai cookie atau penyimpanan lokal.</p>
+          <p>Dua layanan luar dipakai: ipapi.co untuk mencari lokasi alamat IP (dengan ipwho.is dan ipify sebagai cadangan), dan OpenStreetMap untuk menampilkan peta. Keduanya menerima alamat IP Anda saat dimuat, seperti situs web pada umumnya.</p>
+          <p>Lokasi GPS dan nomor telepon tidak dikirim ke mana pun oleh halaman ini. Satu pengecualian: peta OpenStreetMap menerima koordinat yang sedang ditampilkan, karena koordinat itu menjadi bagian dari alamat petanya.</p>
+        </div>
+        <details class="log">
+          <summary>Catatan proses halaman ini</summary>
+          <ol id="logList"></ol>
+        </details>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>Jejak</span>
+    <br>
+    <span>buatan ubeed__08.</span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/libphonenumber-js@1/bundle/libphonenumber-max.js"></script>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const DASH = '—';
+  const setText = (id, value) => { const el = $(id); if (el) el.textContent = (value === undefined || value === null || value === '') ? DASH : value; };
+
+  /* ---------- Catatan proses ---------- */
+  function log(message) {
+    const li = document.createElement('li');
+    const time = document.createElement('time');
+    time.textContent = new Date().toLocaleTimeString('id-ID', { hour12: false });
+    const text = document.createElement('span');
+    text.textContent = message;
+    li.append(time, text);
+    $('logList').append(li);
+  }
+
+  /* ---------- Peta (OpenStreetMap) ---------- */
+  function showMap(lat, lon, zoom, caption) {
+    lat = Number(lat); lon = Number(lon);
+    if (!isFinite(lat) || !isFinite(lon)) return;
+    const d = 540 / Math.pow(2, zoom);
+    const bbox = [lon - d, lat - d * 0.6, lon + d, lat + d * 0.6].map((n) => n.toFixed(5)).join('%2C');
+    const src = 'https://www.openstreetmap.org/export/embed.html?bbox=' + bbox +
+                '&layer=mapnik&marker=' + lat.toFixed(5) + '%2C' + lon.toFixed(5);
+    const box = $('mapBox');
+    box.textContent = '';
+    const frame = document.createElement('iframe');
+    frame.src = src;
+    frame.title = 'Peta lokasi';
+    frame.loading = 'lazy';
+    box.append(frame);
+    $('mapCaption').textContent = caption;
+    const link = $('mapLink');
+    link.href = 'https://www.openstreetmap.org/?mlat=' + lat.toFixed(5) + '&mlon=' + lon.toFixed(5) +
+                '#map=' + zoom + '/' + lat.toFixed(5) + '/' + lon.toFixed(5);
+    link.hidden = false;
+  }
+
+  /* ---------- Alamat IP dan jaringan ---------- */
+  async function getJSON(url, ms = 8000) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), ms);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    } finally { clearTimeout(timer); }
+  }
+
+  const providers = [
+    { name: 'ipapi.co', url: 'https://ipapi.co/json/', map: (d) => {
+        if (d.error) throw new Error(d.reason || 'ditolak');
+        return { ip: d.ip, version: d.version, org: d.org, asn: d.asn, country: d.country_name, code: d.country_code,
+                 region: d.region, city: d.city, postal: d.postal, tz: d.timezone, calling: d.country_calling_code,
+                 lat: d.latitude, lon: d.longitude };
+    } },
+    { name: 'ipwho.is', url: 'https://ipwho.is/', map: (d) => {
+        if (d.success === false) throw new Error(d.message || 'ditolak');
+        const c = d.connection || {};
+        return { ip: d.ip, version: d.type, org: c.isp || c.org, asn: c.asn ? 'AS' + c.asn : null, country: d.country, code: d.country_code,
+                 region: d.region, city: d.city, postal: d.postal, tz: d.timezone && d.timezone.id,
+                 calling: d.calling_code ? '+' + d.calling_code : null, lat: d.latitude, lon: d.longitude };
+    } },
+    { name: 'ipify', url: 'https://api.ipify.org?format=json', map: (d) => {
+        if (!d.ip) throw new Error('kosong');
+        return { ip: d.ip, version: d.ip.includes(':') ? 'IPv6' : 'IPv4' };
+    } }
+  ];
+
+  function renderIP(ip) {
+    const el = $('ip');
+    el.className = 'ip' + (ip.length > 16 ? ' ip--long' : '');
+    el.textContent = '';
+    const label = document.createElement('span');
+    label.className = 'sr';
+    label.textContent = ip;
+    el.append(label);
+    [...ip].forEach((ch, i) => {
+      const s = document.createElement('span');
+      s.className = 'ch' + (ch === '.' || ch === ':' ? ' sep' : '');
+      s.style.setProperty('--i', i);
+      s.setAttribute('aria-hidden', 'true');
+      s.textContent = ch;
+      el.append(s);
+    });
+  }
+
+  function renderNetwork(d, source) {
+    renderIP(d.ip);
+    const place = [d.city, d.region, d.country].filter(Boolean).join(', ');
+    setText('heroPlace', place || 'Lokasi tidak diketahui');
+    setText('heroIsp', d.org || '');
+    $('copyIp').hidden = false;
+
+    setText('ipAddr', d.ip);
+    setText('ipVersion', d.version);
+    setText('ipIsp', d.org);
+    setText('ipAsn', d.asn);
+    setText('geoCountry', d.country ? d.country + (d.code ? ' (' + d.code + ')' : '') : null);
+    setText('geoRegion', d.region);
+    setText('geoCity', d.city);
+    setText('geoPostal', d.postal);
+    setText('geoTz', d.tz);
+    setText('geoCall', d.calling);
+
+    if (d.lat != null && d.lon != null && !gpsActive) {
+      showMap(d.lat, d.lon, 11, 'Perkiraan dari alamat IP. Biasanya akurat sebatas kota.');
+      log('Peta menampilkan perkiraan lokasi dari alamat IP.');
+    }
+    log('Data jaringan diterima dari ' + source + '.');
+  }
+
+  function resetNetwork() {
+    ['ipAddr', 'ipVersion', 'ipIsp', 'ipAsn', 'geoCountry', 'geoRegion', 'geoCity', 'geoPostal', 'geoTz', 'geoCall']
+      .forEach((id) => setText(id, 'Memuat…'));
+    $('ip').className = 'ip ip--wait';
+    $('ip').textContent = 'Menghubungi layanan pencarian IP…';
+    setText('heroPlace', ''); setText('heroIsp', '');
+    $('heroPlace').textContent = ''; $('heroIsp').textContent = '';
+    $('copyIp').hidden = true;
+  }
+
+  async function loadNetwork() {
+    resetNetwork();
+    for (const p of providers) {
+      try {
+        log('Meminta data IP ke ' + p.name + '…');
+        const data = p.map(await getJSON(p.url));
+        renderNetwork(data, p.name);
+        return;
+      } catch (err) {
+        log('Gagal dari ' + p.name + ': ' + err.message + '.');
+      }
+    }
+    const el = $('ip');
+    el.className = 'ip ip--error';
+    el.textContent = 'Alamat IP tidak dapat dimuat.';
+    $('heroPlace').textContent = 'Pemblokir iklan atau ekstensi privasi mungkin menghalangi permintaan. Nonaktifkan untuk situs ini, lalu pilih Muat ulang.';
+    ['ipAddr', 'ipVersion', 'ipIsp', 'ipAsn', 'geoCountry', 'geoRegion', 'geoCity', 'geoPostal', 'geoTz', 'geoCall']
+      .forEach((id) => setText(id, null));
+  }
+
+  /* ---------- GPS ---------- */
+  let gpsActive = false;
+
+  function gpsStatus(message, isError) {
+    ['gpsStatusHero', 'gpsStatus'].forEach((id) => {
+      const el = $(id);
+      el.textContent = message;
+      el.classList.toggle('error', !!isError);
+    });
+  }
+
+  function requestGPS() {
+    if (!('geolocation' in navigator)) {
+      gpsStatus('Browser ini tidak mendukung geolokasi.', true);
+      log('Geolokasi tidak didukung browser.');
+      return;
+    }
+    gpsStatus('Menunggu izin dari browser…');
+    log('Meminta izin lokasi ke browser…');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        gpsActive = true;
+        const { latitude: lat, longitude: lon, accuracy: acc, altitude: alt } = pos.coords;
+        setText('gpsLat', lat.toFixed(6));
+        setText('gpsLon', lon.toFixed(6));
+        setText('gpsAcc', '± ' + Math.round(acc) + ' meter');
+        setText('gpsAlt', alt !== null && alt !== undefined ? Math.round(alt) + ' meter di atas permukaan laut' : 'Tidak dikirim oleh perangkat');
+        showMap(lat, lon, 17, 'Dari GPS perangkat, akurasi ± ' + Math.round(acc) + ' meter.');
+        gpsStatus('Lokasi ditemukan. Peta sudah diperbarui.');
+        $('gpsBtn').textContent = 'Perbarui lokasi GPS';
+        $('gpsBtnHero').textContent = 'Perbarui lokasi GPS';
+        log('Lokasi GPS diterima dengan akurasi ' + Math.round(acc) + ' meter.');
+      },
+      (err) => {
+        const msg = {
+          1: 'Izin lokasi ditolak. Ubah izin situs di pengaturan browser jika ingin mencoba lagi.',
+          2: 'Posisi tidak tersedia. Pastikan layanan lokasi di perangkat aktif.',
+          3: 'Permintaan lokasi kehabisan waktu. Coba lagi di tempat dengan sinyal lebih baik.'
+        }[err.code] || 'Lokasi tidak dapat diambil.';
+        const secure = window.isSecureContext ? '' : ' Geolokasi hanya berfungsi di halaman HTTPS.';
+        gpsStatus(msg + secure, true);
+        log('Lokasi GPS gagal (kode ' + err.code + ').');
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
+
+  /* ---------- Perangkat ---------- */
+  function detectOS(ua) {
+    let m;
+    if (/Windows NT 10/.test(ua)) return 'Windows 10 atau 11';
+    if (/Windows/.test(ua)) return 'Windows';
+    if ((m = ua.match(/Android ([\d.]+)/))) return 'Android ' + m[1];
+    if (/iPhone|iPad|iPod/.test(ua)) { m = ua.match(/OS (\d+)/); return (/iPad/.test(ua) ? 'iPadOS ' : 'iOS ') + (m ? m[1] : ''); }
+    if (/Mac OS X/.test(ua)) return 'macOS';
+    if (/CrOS/.test(ua)) return 'ChromeOS';
+    if (/Linux/.test(ua)) return 'Linux';
+    return (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || null;
+  }
+
+  function detectBrowser(ua) {
+    const table = [
+      [/Edg\/(\d+)/, 'Microsoft Edge'], [/OPR\/(\d+)/, 'Opera'], [/SamsungBrowser\/(\d+)/, 'Samsung Internet'],
+      [/FxiOS\/(\d+)/, 'Firefox'], [/Firefox\/(\d+)/, 'Firefox'], [/CriOS\/(\d+)/, 'Chrome'],
+      [/Chrome\/(\d+)/, 'Chrome'], [/Version\/(\d+).*Safari/, 'Safari']
+    ];
+    for (const [re, name] of table) { const m = ua.match(re); if (m) return name + ' ' + m[1]; }
+    return null;
+  }
+
+  function readGPU() {
+    try {
+      const gl = document.createElement('canvas').getContext('webgl') || document.createElement('canvas').getContext('experimental-webgl');
+      if (!gl) return 'WebGL dimatikan di browser ini';
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : 'Disembunyikan oleh browser';
+    } catch (e) { return 'Tidak dapat dibaca'; }
+  }
+
+  function updateViewport() { setText('scrView', window.innerWidth + ' × ' + window.innerHeight + ' piksel'); }
+
+  function readDevice() {
+    const ua = navigator.userAgent;
+    setText('sysOs', detectOS(ua));
+    setText('sysBrowser', detectBrowser(ua));
+    setText('sysCpu', navigator.hardwareConcurrency ? navigator.hardwareConcurrency + ' inti logis' : 'Tidak dibagikan browser');
+    setText('sysRam', navigator.deviceMemory ? 'Sekitar ' + navigator.deviceMemory + ' GB' : 'Tidak dibagikan browser');
+    setText('sysLang', navigator.language);
+
+    const conn = navigator.connection;
+    if (conn) {
+      setText('netType', conn.effectiveType ? conn.effectiveType.toUpperCase() : 'Tidak dibagikan browser');
+      setText('netDown', conn.downlink ? conn.downlink + ' Mbps' : 'Tidak dibagikan browser');
+    } else {
+      setText('netType', 'Tidak dibagikan browser');
+      setText('netDown', 'Tidak dibagikan browser');
+    }
+
+    setText('scrRes', screen.width + ' × ' + screen.height + ' piksel');
+    updateViewport();
+    window.addEventListener('resize', updateViewport);
+    setText('scrDepth', screen.colorDepth ? screen.colorDepth + ' bit' : null);
+    setText('scrDpr', window.devicePixelRatio || 1);
+    setText('scrGpu', readGPU());
+
+    setText('secCookie', navigator.cookieEnabled ? 'Aktif' : 'Nonaktif');
+    setText('secHttps', location.protocol === 'https:' ? 'Ya (HTTPS)' : 'Tidak (HTTP atau file lokal)');
+    setText('secRef', document.referrer || 'Tidak ada (kunjungan langsung)');
+    const dnt = navigator.doNotTrack;
+    setText('secDnt', dnt === '1' ? 'Aktif' : dnt === '0' ? 'Dimatikan' : 'Tidak diatur');
+
+    if (navigator.getBattery) {
+      navigator.getBattery().then((b) => {
+        const update = () => setText('sysBattery', Math.round(b.level * 100) + '%, ' + (b.charging ? 'sedang diisi' : 'memakai baterai'));
+        update();
+        b.addEventListener('levelchange', update);
+        b.addEventListener('chargingchange', update);
+      }).catch(() => setText('sysBattery', 'Tidak dibagikan browser'));
+    } else {
+      setText('sysBattery', 'Tidak didukung browser ini');
+    }
+    log('Data perangkat dan browser dibaca.');
+  }
+
+  function readLoadTime() {
+    const nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+    const ms = nav && nav.domContentLoadedEventEnd ? Math.round(nav.domContentLoadedEventEnd) : null;
+    setText('secLoad', ms !== null ? ms + ' md' : null);
+  }
+
+  /* ---------- Pemeriksa nomor telepon (libphonenumber-js) ---------- */
+  // Peta prefix operator seluler Indonesia (bawaan halaman ini)
+  const ID_MOBILE = {};
+  const addPrefix = (name, list) => list.forEach((p) => { ID_MOBILE[p] = name; });
+  addPrefix('Telkomsel', ['811', '812', '813', '821', '822', '823', '852', '853']);
+  addPrefix('by.U (Telkomsel)', ['851']);
+  addPrefix('Indosat Ooredoo (IM3, Mentari)', ['814', '815', '816', '855', '856', '857', '858']);
+  addPrefix('XL Axiata', ['817', '818', '819', '859', '877', '878']);
+  addPrefix('Axis', ['831', '832', '833', '838']);
+  addPrefix('Tri (Indosat Ooredoo Hutchison)', ['895', '896', '897', '898', '899']);
+  addPrefix('Smartfren', ['881', '882', '883', '884', '885', '886', '887', '888', '889']);
+
+  // Peta kode area telepon tetap Indonesia (bawaan halaman ini)
+  const ID_AREA = {
+    '21': 'Jakarta', '22': 'Bandung', '24': 'Semarang', '31': 'Surabaya', '61': 'Medan',
+    '251': 'Bogor', '271': 'Surakarta (Solo)', '274': 'Yogyakarta', '341': 'Malang', '361': 'Denpasar',
+    '370': 'Mataram', '380': 'Kupang', '411': 'Makassar', '431': 'Manado', '511': 'Banjarmasin',
+    '541': 'Samarinda', '561': 'Pontianak', '711': 'Palembang', '751': 'Padang'
+  };
+
+  const LINE_TYPE_LABELS = {
+    FIXED_LINE: 'Telepon tetap (fixed line)',
+    MOBILE: 'Seluler',
+    FIXED_LINE_OR_MOBILE: 'Tetap atau seluler',
+    TOLL_FREE: 'Bebas pulsa (toll-free)',
+    PREMIUM_RATE: 'Premium rate',
+    SHARED_COST: 'Biaya bersama (shared cost)',
+    VOIP: 'VoIP',
+    PERSONAL_NUMBER: 'Nomor pribadi',
+    PAGER: 'Pager',
+    UAN: 'UAN (Universal Access Number)',
+    VOICEMAIL: 'Pesan suara (voicemail)',
+    UNKNOWN: 'Tidak diketahui'
+  };
+
+  const phoneCache = new Map(); // kunci: input dinormalisasi -> hasil analisis
+
+  function renderLoading() {
+    $('phoneResult').hidden = false;
+    $('phoneResult').setAttribute('aria-busy', 'true');
+    setVerdict('loading', 'Menganalisis nomor…');
+    $('verdictReason').textContent = 'Memuat metadata libphonenumber-js dari CDN. Tunggu sebentar…';
+    $('phoneRows').textContent = '';
+    $('phoneExtra').textContent = '';
+  }
+
+  function withLibPhone(cb) {
+    if (window.libphonenumber) { cb(window.libphonenumber); return; }
+    renderLoading();
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      if (window.libphonenumber) {
+        clearInterval(timer);
+        $('phoneResult').setAttribute('aria-busy', 'false');
+        cb(window.libphonenumber);
+      } else if (tries >= 24) { // ~6 detik
+        clearInterval(timer);
+        $('phoneResult').setAttribute('aria-busy', 'false');
+        renderPhone({ fatal: 'Pustaka libphonenumber-js belum termuat. Periksa koneksi ke CDN jsDelivr, lalu muat ulang halaman.' });
+      }
+    }, 250);
+  }
+
+  function formatLocalTime(timeZone) {
+    try {
+      return new Intl.DateTimeFormat('id-ID', {
+        timeZone: timeZone,
+        day: 'numeric', month: 'long', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      }).format(new Date());
+    } catch (e) { return null; }
+  }
+
+  function analysePhone(lib, raw) {
+    const original = raw.trim();
+    if (!original) return { empty: true };
+    const compact = original.replace(/[\s().\-]/g, '');
+    if (!/^\+?[\d\s().\-]+$/.test(original) || !compact.replace(/^\+/, '')) {
+      return { invalid: true, original, reason: 'Nomor hanya boleh berisi angka, spasi, tanda hubung, tanda kurung, dan awalan +.' };
+    }
+
+    // Default country ID bila pengguna menulis format nasional (0…) tanpa +
+    const looksIntl = /^\+|^00/.test(compact);
+    let parsed = null;
+    try {
+      parsed = lib.parsePhoneNumberFromString(original, looksIntl ? undefined : 'ID')
+            || lib.parsePhoneNumberFromString(original);
+    } catch (err) {
+      return { invalid: true, original,
+        reason: 'Format tidak dapat diparsing: ' + (err && err.message ? err.message : 'kesalahan tidak dikenal') + '.' };
+    }
+    if (!parsed || !parsed.country) {
+      return { invalid: true, original,
+        reason: 'Kode negara tidak dapat dikenali. Tulis nomor lengkap dengan kode negara, misalnya +62 812 3456 7890.' };
+    }
+
+    const res = {
+      original: original,
+      valid: parsed.isValid(),
+      possible: parsed.isPossible(),
+      e164: parsed.number,
+      international: parsed.formatInternational(),
+      national: parsed.formatNational(),
+      countryCode: '+' + parsed.countryCallingCode,
+      countryName: null,
+      lineType: null,
+      carrier: null,
+      areaCode: null,
+      areaRegion: null,
+      timeZones: [],
+      localTime: null,
+      digitCount: parsed.nationalNumber.length,
+      source: 'libphonenumber-js (metadata libphonenumber Google, via CDN jsDelivr)'
+    };
+
+    try {
+      res.countryName = new Intl.DisplayNames(['id'], { type: 'region' }).of(parsed.country);
+    } catch (e) {
+      res.countryName = parsed.country;
+    }
+
+    const t = parsed.getType();
+    res.lineType = LINE_TYPE_LABELS[t] || 'Tidak diketahui';
+
+    if (typeof parsed.getTimeZones === 'function') {
+      try { res.timeZones = parsed.getTimeZones() || []; } catch (e) { res.timeZones = []; }
+    }
+    if (res.timeZones.length) res.localTime = formatLocalTime(res.timeZones[0]);
+
+    // Peta prefix operator & kode area Indonesia (bawaan halaman ini)
+    if (parsed.country === 'ID') {
+      const nat = parsed.nationalNumber; // digit nasional tanpa kode negara
+      if (nat.charAt(0) === '8') {
+        const p3 = nat.slice(0, 3);
+        res.carrier = ID_MOBILE[p3] || 'Tidak tersedia (awalan 0' + p3 + ' tidak ada dalam peta prefix bawaan)';
+        res.areaCode = '0' + p3;
+      } else {
+        const code = ID_AREA[nat.slice(0, 3)] ? nat.slice(0, 3) : (ID_AREA[nat.slice(0, 2)] ? nat.slice(0, 2) : null);
+        res.areaCode = code ? '0' + code : null;
+        res.areaRegion = code ? ID_AREA[code] : null;
+      }
+    }
+
+    const place = res.countryName || res.countryCode;
+    if (res.valid) res.reason = 'Nomor valid menurut aturan numbering plan ' + place + '.';
+    else if (res.possible) res.reason = 'Struktur nomor memungkinkan, tetapi polanya tidak valid menurut metadata numbering plan ' + place + '. Perlu diverifikasi ke penyedia layanan.';
+    else res.reason = 'Nomor tidak mungkin secara struktur: jumlah digit atau polanya tidak cocok dengan numbering plan ' + place + '.';
+    return res;
+  }
+
+  function setVerdict(state, text) {
+    const v = $('verdict');
+    v.className = 'verdict ' + state;
+    v.textContent = text;
+  }
+
+  function addRow(dl, label, value) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    if (Array.isArray(value)) dd.append.apply(dd, value);
+    else dd.textContent = (value === null || value === undefined || value === '') ? 'Tidak tersedia' : value;
+    row.append(dt, dd);
+    dl.append(row);
+  }
+
+  function makeGroup(title, pairs) {
+    const box = document.createElement('div');
+    const h = document.createElement('h3');
+    h.className = 'group-title';
+    h.textContent = title;
+    const dl = document.createElement('dl');
+    dl.className = 'rows';
+    pairs.forEach((pair) => addRow(dl, pair[0], pair[1]));
+    box.append(h, dl);
+    return box;
+  }
+
+  function renderPhone(r) {
+    $('phoneResult').hidden = false;
+    $('phoneRows').textContent = '';
+    $('phoneExtra').textContent = '';
+    const reasonEl = $('verdictReason');
+
+    if (r.fatal) {
+      setVerdict('bad', 'Metadata belum siap');
+      reasonEl.textContent = r.fatal;
+      return;
+    }
+    if (r.loading) { renderLoading(); return; }
+    if (r.empty) {
+      setVerdict('bad', 'Nomor belum diisi');
+      reasonEl.textContent = 'Ketik nomor telepon di kolom di atas, lalu pilih Periksa nomor.';
+      return;
+    }
+    if (r.invalid) {
+      setVerdict('bad', 'Nomor tidak dapat dianalisis');
+      reasonEl.textContent = r.reason;
+      if (r.original) {
+        const dl = $('phoneRows');
+        addRow(dl, 'Nomor asli', r.original);
+      }
+      return;
+    }
+
+    setVerdict(r.valid ? 'ok' : 'bad',
+      r.valid ? 'Nomor valid' : (r.possible ? 'Kemungkinan valid — perlu verifikasi' : 'Nomor tidak valid'));
+    reasonEl.textContent = (r.cached ? 'Hasil dari cache lokal. ' : '') + r.reason;
+
+    const rows = $('phoneRows');
+    addRow(rows, 'Nomor asli', r.original);
+    addRow(rows, 'Valid', r.valid ? 'Ya' : 'Tidak');
+    addRow(rows, 'Kemungkinan valid', r.possible ? 'Ya' : 'Tidak');
+    addRow(rows, 'Format internasional (E.164)', r.e164);
+    addRow(rows, 'Format internasional', r.international);
+    addRow(rows, 'Format nasional', r.national);
+    addRow(rows, 'Kode negara', r.countryCode);
+    addRow(rows, 'Negara', r.countryName);
+    addRow(rows, 'Jenis nomor', r.lineType);
+    addRow(rows, 'Jumlah digit nasional', r.digitCount != null ? r.digitCount + ' digit' : null);
+
+    const extra = $('phoneExtra');
+    extra.append(makeGroup('Operator & wilayah (perkiraan)', [
+      ['Operator asal (dari prefix)', r.carrier],
+      ['Prefix / kode area', r.areaCode],
+      ['Wilayah kode area', r.areaRegion]
+    ]));
+
+    let tzValue = 'Tidak tersedia';
+    if (r.timeZones.length) {
+      const chips = [];
+      r.timeZones.forEach((tz) => {
+        const chip = document.createElement('span');
+        chip.className = 'tz-chip';
+        chip.textContent = tz;
+        chips.push(chip);
+      });
+      const wrap = document.createElement('span');
+      wrap.className = 'tz-chips';
+      wrap.append.apply(wrap, chips);
+      tzValue = [wrap];
+    }
+    extra.append(makeGroup('Zona waktu', [
+      ['Zona waktu', tzValue],
+      ['Waktu lokal perkiraan', r.localTime]
+    ]));
+
+    extra.append(makeGroup('Sumber data', [
+      ['Metadata nomor', r.source],
+      ['Peta prefix/kode area', 'Daftar bawaan halaman ini (Indonesia)']
+    ]));
+  }
+
+  function handlePhoneSubmit() {
+    const value = $('phoneInput').value;
+    if (!value.trim()) { renderPhone({ empty: true }); return; }
+    const cacheKey = value.replace(/[\s().\-]/g, '').toLowerCase();
+    if (phoneCache.has(cacheKey)) {
+      const cached = phoneCache.get(cacheKey);
+      renderPhone(Object.assign({ cached: true }, cached));
+      log('Nomor telepon diperiksa di perangkat (hasil dari cache lokal).');
+      return;
+    }
+    withLibPhone((lib) => {
+      const r = analysePhone(lib, value);
+      if (!r.invalid && !r.empty) phoneCache.set(cacheKey, r);
+      renderPhone(r);
+      log('Nomor telepon diperiksa di perangkat.');
+    });
+  }
+
+  /* ---------- Salin IP ---------- */
+  async function copyIP() {
+    const btn = $('copyIp');
+    const ip = $('ipAddr').textContent;
+    let ok = false;
+    try { await navigator.clipboard.writeText(ip); ok = true; } catch (e) {
+      try {
+        const t = document.createElement('textarea');
+        t.value = ip; t.style.position = 'fixed'; t.style.opacity = '0';
+        document.body.append(t); t.select(); ok = document.execCommand('copy'); t.remove();
+      } catch (e2) { ok = false; }
+    }
+    const original = 'Salin alamat IP';
+    btn.textContent = ok ? 'Alamat IP tersalin' : 'Gagal menyalin';
+    setTimeout(() => { btn.textContent = original; }, 1800);
+  }
+
+  /* ---------- Inisialisasi ---------- */
+  $('gpsBtn').addEventListener('click', requestGPS);
+  $('gpsBtnHero').addEventListener('click', requestGPS);
+  $('copyIp').addEventListener('click', copyIP);
+  $('reload').addEventListener('click', loadNetwork);
+  $('phoneForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    handlePhoneSubmit();
+  });
+
+  log('Halaman dimuat.');
+  readDevice();
+  loadNetwork();
+  window.addEventListener('load', () => setTimeout(readLoadTime, 0));
+})();
+</script>
+</body>
+</html>
